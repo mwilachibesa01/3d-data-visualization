@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Data Visualization (Periodic Full + No Overlap)</title>
+
+  <!-- Google Login -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- ✅ Import map (fixes module specifier "three") -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
+
+    #loginScreen {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      background: #000;
+    }
+
+    #appScreen {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      position: relative;
+      background: #000;
+    }
+
+    #threeContainer {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* menu like the three.js demo */
+    #menu {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    #menu button {
+      background: rgba(0, 255, 255, 0.08);
+      border: 1px solid rgba(0, 255, 255, 0.35);
+      color: #aafcff;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      backdrop-filter: blur(6px);
+    }
+
+    #menu button:hover {
+      background: rgba(0, 255, 255, 0.14);
+      border-color: rgba(0, 255, 255, 0.55);
+      color: #e9feff;
+    }
+
+    /* ✅ CARD LOOK (shadow/glow like your screenshot) */
+    .element{
+  width: 190px;
+  height: 240px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  padding: 12px;
+  position: relative;
+  color: #fff;
+
+  /* inner dark look */
+  background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.85));
+  backdrop-filter: blur(4px);
+
+  /* border + glow will be set in JS using CSS variables */
+  border: 3px solid var(--glow, #3A9F48);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08) inset,
+    0 14px 40px rgba(0,0,0,0.65),
+    0 0 26px rgba(0,0,0,0.35),
+    0 0 22px rgba(58,159,72,0.55); /* fallback */
+
+  user-select: none;
+}
+
+.element::after{
+  /* subtle vignette */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  background: radial-gradient(120px 120px at 50% 15%, rgba(255,255,255,0.08), transparent 60%);
+  opacity: 0.9;
+}
+
+.badge-left, .badge-right{
+  position: absolute;
+  top: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.18);
+  z-index: 2;
+}
+
+.badge-left{ left: 10px; }
+.badge-right{ right: 10px; }
+
+.photo{
+  width: 150px;
+  height: 150px;
+  margin: 24px auto 12px auto;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid rgba(255,255,255,0.12);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.55);
+}
+
+.photo img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.name{
+  font-weight: 900;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.2;
+  margin-top: 2px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.65);
+}
+
+.interest{
+  font-size: 12px;
+  opacity: 0.9;
+  text-align: center;
+  margin-top: 6px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.65);
+}
+
+    /* legend */
+    #legend {
+      position: absolute;
+      right: 14px;
+      bottom: 12px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      opacity: 0.9;
+      user-select: none;
+    }
+    #legend .bar {
+      width: 170px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #EF3022, #FDCA35, #3A9F48);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- LOGIN -->
+  <div id="loginScreen">
+    <h2>Sign In With Google</h2>
+
+    <div id="g_id_onload"
+         data-client_id="274060483849-g5mor95fm7g8cubetnp2h658a6m7jh1c.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse"
+         data-auto_prompt="false"></div>
+
+    <div class="g_id_signin"></div>
+  </div>
+
+  <!-- APP -->
+  <div id="appScreen">
+    <div id="threeContainer"></div>
+
+    <div id="menu">
+      <button id="btnTable">Table</button>
+      <button id="btnSphere">Sphere</button>
+      <button id="btnHelix">Helix</button>
+      <button id="btnGrid">Grid</button>
+    </div>
+
+    <div id="legend">
+      <span>LOW</span>
+      <div class="bar"></div>
+      <span>High</span>
+    </div>
+  </div>
+
+  <!-- NORMAL SCRIPT: login + load CSV -->
+  <script>
+    window.THREE_MODULE_READY = false;
+
+    const SHEET_CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vQxx77FGeDPMV6jEoTE7fjzvHGifDG0CDEATDxxX1i7Xoxg8jPzs3bdDvWGvMcmkVBe-iqpmI88h51f/pub?output=csv";
+
+    function handleCredentialResponse() {
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("appScreen").style.display = "block";
+      loadSheetData();
+    }
+
+    async function loadSheetData() {
+      try {
+        const res = await fetch(SHEET_CSV_URL);
+        if (!res.ok) throw new Error("CSV fetch failed. Status: " + res.status);
+        const csvText = await res.text();
+        const data = parseCSV(csvText);
+        waitForThreeAndInit(data);
+      } catch (err) {
+        console.error("❌ Sheet load error:", err);
+        document.getElementById("appScreen").innerHTML =
+          `<h2 style="padding:16px;color:#ff6b6b;">Error loading sheet data ❌</h2>
+           <pre style="padding:16px;white-space:pre-wrap;">${err.message}</pre>`;
+      }
+    }
+
+    function waitForThreeAndInit(data) {
+      if (window.THREE_MODULE_READY && typeof window.initThree === "function") {
+        window.initThree(data);
+      } else {
+        setTimeout(() => waitForThreeAndInit(data), 100);
+      }
+    }
+
+    // CSV parser (handles quoted commas)
+    function splitCSVLine(line) {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+        else if (ch === '"') inQuotes = !inQuotes;
+        else if (ch === "," && !inQuotes) { result.push(current); current = ""; }
+        else current += ch;
+      }
+      result.push(current);
+      return result;
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/).filter(l => l.trim() !== "");
+      const headers = splitCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, "").trim());
+
+      return lines.slice(1).map(line => {
+        const values = splitCSVLine(line);
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = (values[i] || "").trim());
+        return obj;
+      });
+    }
+  </script>
+
+  <!-- MODULE SCRIPT: three.js + CSS3D + layouts -->
+  <script type="module">
+    import * as THREE from "three";
+    import { TrackballControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/TrackballControls.js";
+    import { CSS3DRenderer, CSS3DObject } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/renderers/CSS3DRenderer.js";
+
+    let camera, scene, renderer, controls;
+    let objects = [];
+    const targets = { table: [], sphere: [], helix: [], grid: [] };
+    let anim = null;
+
+    // ✅ FULL official periodic table mapping (118)
+    const PERIODIC_TABLE = [
+      "H","Hydrogen","1.00794",1,1, "He","Helium","4.002602",18,1,
+      "Li","Lithium","6.941",1,2, "Be","Beryllium","9.012182",2,2,
+      "B","Boron","10.811",13,2, "C","Carbon","12.0107",14,2, "N","Nitrogen","14.0067",15,2, "O","Oxygen","15.9994",16,2, "F","Fluorine","18.9984032",17,2, "Ne","Neon","20.1797",18,2,
+      "Na","Sodium","22.98976...",1,3, "Mg","Magnesium","24.305",2,3,
+      "Al","Aluminium","26.9815386",13,3, "Si","Silicon","28.0855",14,3, "P","Phosphorus","30.973762",15,3, "S","Sulfur","32.065",16,3, "Cl","Chlorine","35.453",17,3, "Ar","Argon","39.948",18,3,
+      "K","Potassium","39.948",1,4, "Ca","Calcium","40.078",2,4, "Sc","Scandium","44.955912",3,4, "Ti","Titanium","47.867",4,4, "V","Vanadium","50.9415",5,4, "Cr","Chromium","51.9961",6,4, "Mn","Manganese","54.938045",7,4, "Fe","Iron","55.845",8,4, "Co","Cobalt","58.933195",9,4, "Ni","Nickel","58.6934",10,4, "Cu","Copper","63.546",11,4, "Zn","Zinc","65.38",12,4,
+      "Ga","Gallium","69.723",13,4, "Ge","Germanium","72.63",14,4, "As","Arsenic","74.9216",15,4, "Se","Selenium","78.96",16,4, "Br","Bromine","79.904",17,4, "Kr","Krypton","83.798",18,4,
+      "Rb","Rubidium","85.4678",1,5, "Sr","Strontium","87.62",2,5, "Y","Yttrium","88.90585",3,5, "Zr","Zirconium","91.224",4,5, "Nb","Niobium","92.90628",5,5, "Mo","Molybdenum","95.96",6,5, "Tc","Technetium","(98)",7,5, "Ru","Ruthenium","101.07",8,5, "Rh","Rhodium","102.9055",9,5, "Pd","Palladium","106.42",10,5, "Ag","Silver","107.8682",11,5, "Cd","Cadmium","112.411",12,5,
+      "In","Indium","114.818",13,5, "Sn","Tin","118.71",14,5, "Sb","Antimony","121.76",15,5, "Te","Tellurium","127.6",16,5, "I","Iodine","126.90447",17,5, "Xe","Xenon","131.293",18,5,
+      "Cs","Caesium","132.9054",1,6, "Ba","Barium","132.9054",2,6,
+      "La","Lanthanum","138.90547",4,9, "Ce","Cerium","140.116",5,9, "Pr","Praseodymium","140.90765",6,9, "Nd","Neodymium","144.242",7,9, "Pm","Promethium","(145)",8,9, "Sm","Samarium","150.36",9,9, "Eu","Europium","151.964",10,9, "Gd","Gadolinium","157.25",11,9, "Tb","Terbium","158.92535",12,9, "Dy","Dysprosium","162.5",13,9, "Ho","Holmium","164.93032",14,9, "Er","Erbium","167.259",15,9, "Tm","Thulium","168.93421",16,9, "Yb","Ytterbium","173.054",17,9, "Lu","Lutetium","174.9668",18,9,
+      "Hf","Hafnium","178.49",4,6, "Ta","Tantalum","180.94788",5,6, "W","Tungsten","183.84",6,6, "Re","Rhenium","186.207",7,6, "Os","Osmium","190.23",8,6, "Ir","Iridium","192.217",9,6, "Pt","Platinum","195.084",10,6, "Au","Gold","196.966569",11,6, "Hg","Mercury","200.59",12,6,
+      "Tl","Thallium","204.3833",13,6, "Pb","Lead","207.2",14,6, "Bi","Bismuth","208.9804",15,6, "Po","Polonium","(209)",16,6, "At","Astatine","(210)",17,6, "Rn","Radon","(222)",18,6,
+      "Fr","Francium","(223)",1,7, "Ra","Radium","(226)",2,7,
+      "Ac","Actinium","(227)",4,10, "Th","Thorium","232.03806",5,10, "Pa","Protactinium","231.0588",6,10, "U","Uranium","238.02891",7,10, "Np","Neptunium","(237)",8,10, "Pu","Plutonium","(244)",9,10, "Am","Americium","(243)",10,10, "Cm","Curium","(247)",11,10, "Bk","Berkelium","(247)",12,10, "Cf","Californium","(251)",13,10, "Es","Einstenium","(252)",14,10, "Fm","Fermium","(257)",15,10, "Md","Mendelevium","(258)",16,10, "No","Nobelium","(259)",17,10, "Lr","Lawrencium","(262)",18,10,
+      "Rf","Rutherfordium","(267)",4,7, "Db","Dubnium","(268)",5,7, "Sg","Seaborgium","(271)",6,7, "Bh","Bohrium","(272)",7,7, "Hs","Hassium","(270)",8,7, "Mt","Meitnerium","(276)",9,7, "Ds","Darmstadtium","(281)",10,7, "Rg","Roentgenium","(280)",11,7, "Cn","Copernicium","(285)",12,7,
+      "Nh","Nihonium","(286)",13,7, "Fl","Flerovium","(289)",14,7, "Mc","Moscovium","(290)",15,7, "Lv","Livermorium","(293)",16,7, "Ts","Tennessine","(294)",17,7, "Og","Oganesson","(294)",18,7
+    ];
+
+    const MAX_SLOTS = Math.floor(PERIODIC_TABLE.length / 5); // 118
+
+    function toNumber(v) {
+      const n = String(v || "").replace(/[^0-9.]/g, "");
+      return Number(n || 0);
+    }
+
+    function colorByWorth(n) {
+      if (n < 100000) return "#EF3022";
+      if (n <= 200000) return "#FDCA35";
+      return "#3A9F48";
+    }
+
+    function easeInOut(t) {
+      return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
+    }
+
+    function makeTargetObject() {
+      const o = new THREE.Object3D();
+      o.position.set(0,0,0);
+      o.quaternion.identity();
+      return o;
+    }
+
+    // ✅ Table spacing adjusted so nothing overlaps, but order/shape is EXACT
+    function buildTargetsTableExact(n) {
+      targets.table = [];
+
+      const X_SPACING = 185;
+      const Y_SPACING = 245;
+
+      const X_OFFSET = 1750;
+      const Y_OFFSET = 1350;
+
+      for (let i = 0; i < n; i++) {
+        const col = PERIODIC_TABLE[i * 5 + 3];
+        const row = PERIODIC_TABLE[i * 5 + 4];
+
+        const t = makeTargetObject();
+        t.position.x = (col * X_SPACING) - X_OFFSET;
+        t.position.y = -(row * Y_SPACING) + Y_OFFSET;
+        t.position.z = 0;
+        t.lookAt(new THREE.Vector3(0, 0, 10000));
+        targets.table.push(t);
+      }
+    }
+
+    function buildTargetsSphere(n) {
+      targets.sphere = [];
+      const radius = 950;
+
+      for (let i = 0; i < n; i++) {
+        const k = i + 0.5;
+        const phi = Math.acos(1 - 2 * k / n);
+        const theta = Math.PI * (1 + Math.sqrt(5)) * k;
+
+        const x = radius * Math.cos(theta) * Math.sin(phi);
+        const y = radius * Math.sin(theta) * Math.sin(phi);
+        const z = radius * Math.cos(phi);
+
+        const t = makeTargetObject();
+        t.position.set(x, y, z);
+        t.lookAt(new THREE.Vector3(x, y, z).multiplyScalar(2));
+        targets.sphere.push(t);
+      }
+    }
+
+ function buildTargetsHelix(n) {
+  targets.helix = [];
+
+  // ✅ Tune for your 160x200 cards (prevents collisions)
+  const radius = 950;          // helix width
+  const yStep = 120;           // vertical spacing between targets (BIG = clean)
+  const turns = 6;             // number of full twists over the whole helix
+
+  // Optional slight separation so the two strands are visually distinct
+  // (still a normal double helix, just clearer with big cards)
+  const strandOffset = 220;
+
+  for (let i = 0; i < n; i++) {
+    const strand = i % 2;  // 0 or 1
+
+    // Smooth, evenly distributed angle progression along the helix
+    const angle = (i / Math.max(1, n - 1)) * (Math.PI * 2 * turns) + (strand === 0 ? 0 : Math.PI);
+
+    // Y increases linearly with i, centered around 0
+    const y = (i - (n - 1) / 2) * yStep;
+
+    // Position on the helix
+    const x = radius * Math.cos(angle);
+    const z = radius * Math.sin(angle);
+
+    // Slight separation so you SEE two strands (not required, but helps)
+    const side = strand === 0 ? -strandOffset : strandOffset;
+
+    const t = makeTargetObject();
+    t.position.set(x + side, y, z);
+
+    // ✅ Keep a natural helix orientation (no "face camera")
+    // Face outward from the center axis:
+    t.lookAt(new THREE.Vector3((x + side) * 2, y, z * 2));
+
+    targets.helix.push(t);
+  }
+}
+
+
+
+    function buildTargetsGrid(n) {
+  targets.grid = [];
+
+  // ✅ REQUIRED grid dimensions (matches your picture)
+  const COLS = 5;   // X
+  const ROWS = 4;   // Y
+  const DEPTH = 10; // Z (fixed, not dynamic)
+
+  // ✅ spacing tuned for your 160×200 cards
+  const X_SPACING = 260;
+  const Y_SPACING = 260;
+  const Z_SPACING = 600;
+
+  for (let i = 0; i < n; i++) {
+    const x = i % COLS;
+    const y = Math.floor(i / COLS) % ROWS;
+    const z = Math.floor(i / (COLS * ROWS)) % DEPTH;
+
+    const t = makeTargetObject();
+
+    // Center grid around origin
+    t.position.x = (x - (COLS - 1) / 2) * X_SPACING;
+    t.position.y = ((ROWS - 1) / 2 - y) * Y_SPACING;
+    t.position.z = (z - (DEPTH - 1) / 2) * Z_SPACING;
+
+    // Face camera (important for readability)
+    t.lookAt(new THREE.Vector3(0, 0, 10000));
+
+    targets.grid.push(t);
+  }
+}
+
+
+    function buildAllTargets(n) {
+      buildTargetsTableExact(n);
+      buildTargetsSphere(n);
+      buildTargetsHelix(n);
+      buildTargetsGrid(n);
+    }
+
+    function transform(layoutName, durationMs = 1200) {
+      if (!targets[layoutName] || targets[layoutName].length === 0) return;
+
+      const start = performance.now();
+      anim = {
+        start,
+        durationMs,
+        starts: objects.map(o => ({ pos: o.position.clone(), quat: o.quaternion.clone() })),
+        ends: targets[layoutName].map(t => ({ pos: t.position.clone(), quat: t.quaternion.clone() }))
+      };
+    }
+
+    window.initThree = function initThree(data) {
+      const container = document.getElementById("threeContainer");
+      container.innerHTML = "";
+      objects = [];
+      targets.table = []; targets.sphere = []; targets.helix = []; targets.grid = [];
+      anim = null;
+
+      // ✅ Use as many rows as possible up to 118 (fills the periodic order)
+      const limitedData = data.slice(0, Math.min(data.length, MAX_SLOTS));
+
+      camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 20000);
+      camera.position.z = 4200;
+
+      scene = new THREE.Scene();
+
+      renderer = new CSS3DRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.domElement.style.position = "absolute";
+      renderer.domElement.style.top = "0";
+      renderer.domElement.style.left = "0";
+      container.appendChild(renderer.domElement);
+
+      controls = new TrackballControls(camera, renderer.domElement);
+      controls.rotateSpeed = 1.0;
+      controls.zoomSpeed = 1.2;
+      controls.panSpeed = 0.8;
+      controls.minDistance = 1200;
+      controls.maxDistance = 20000;
+
+      limitedData.forEach((row) => {
+        const name = row["Name"] || "No Name";
+        const photo = row["Photo"] || "";
+        const age = row["Age"] || "";
+        const country = row["Country"] || "";
+        const interest = row["Interest"] || "";
+        const netWorth = toNumber(row["Net Worth"]);
+
+        const el = document.createElement("div");
+        el.className = "element";
+        const glow = colorByWorth(netWorth);
+
+// keep dark card background, but apply glow color to border/shadow
+el.style.setProperty("--glow", glow);
+el.style.borderColor = glow;
+el.style.boxShadow =
+  `0 0 0 1px rgba(255,255,255,0.08) inset,
+   0 14px 40px rgba(0,0,0,0.65),
+   0 0 26px rgba(0,0,0,0.35),
+   0 0 28px ${glow}88`;
+
+
+        const safePhoto = photo.startsWith("http")
+          ? photo
+          : "https://via.placeholder.com/120?text=%20";
+
+        el.innerHTML = `
+  <div class="badge-left">${country}</div>
+  <div class="badge-right">${age}</div>
+
+  <div class="photo">
+    <img src="${safePhoto}" alt="">
+  </div>
+
+  <div class="name">${name}</div>
+  <div class="interest">${interest}</div>
+`;
+
+
+        const obj = new CSS3DObject(el);
+        obj.position.set(
+          Math.random() * 4000 - 2000,
+          Math.random() * 2000 - 1000,
+          Math.random() * 4000 - 2000
+        );
+
+        scene.add(obj);
+        objects.push(obj);
+      });
+
+      buildAllTargets(objects.length);
+
+      document.getElementById("btnTable").onclick = () => transform("table", 1800);
+      document.getElementById("btnSphere").onclick = () => transform("sphere", 1400);
+      document.getElementById("btnHelix").onclick = () => {
+  camera.position.set(0, 0, 12000);
+  transform("helix", 1400);
+};
+
+      document.getElementById("btnGrid").onclick = () => transform("grid", 1400);
+
+      transform("table", 2000);
+
+      window.addEventListener("resize", onResize);
+      animate();
+    };
+
+    function onResize() {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function updateAnimation() {
+      if (!anim) return;
+
+      const now = performance.now();
+      const rawT = (now - anim.start) / anim.durationMs;
+      const t = Math.min(1, Math.max(0, rawT));
+      const e = easeInOut(t);
+
+      for (let i = 0; i < objects.length; i++) {
+        const o = objects[i];
+        const s = anim.starts[i];
+        const end = anim.ends[i] || anim.ends[anim.ends.length - 1];
+
+        o.position.lerpVectors(s.pos, end.pos, e);
+        o.quaternion.slerpQuaternions(s.quat, end.quat, e);
+      }
+
+      if (t >= 1) anim = null;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      updateAnimation();
+      controls?.update();
+      renderer?.render(scene, camera);
+    }
+
+    window.THREE_MODULE_READY = true;
+  </script>
+</body>
+</html>
