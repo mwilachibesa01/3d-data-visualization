@@ -7,7 +7,7 @@
   <!-- Google Login -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- ✅ Import map (fixes module specifier "three") -->
+  
   <script type="importmap">
   {
     "imports": {
@@ -81,7 +81,7 @@
       color: #e9feff;
     }
 
-    /* ✅ CARD LOOK (shadow/glow like your screenshot) */
+    
     .element{
   width: 190px;
   height: 240px;
@@ -91,11 +91,10 @@
   position: relative;
   color: #fff;
 
-  /* inner dark look */
+ 
   background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.85));
   backdrop-filter: blur(4px);
 
-  /* border + glow will be set in JS using CSS variables */
   border: 3px solid var(--glow, #3A9F48);
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.08) inset,
@@ -107,7 +106,7 @@
 }
 
 .element::after{
-  /* subtle vignette */
+  
   content: "";
   position: absolute;
   inset: 0;
@@ -222,7 +221,7 @@
     </div>
   </div>
 
-  <!-- NORMAL SCRIPT: login + load CSV -->
+  
   <script>
     window.THREE_MODULE_READY = false;
 
@@ -344,7 +343,7 @@
       return o;
     }
 
-    // ✅ Table spacing adjusted so nothing overlaps, but order/shape is EXACT
+    
     function buildTargetsTableExact(n) {
       targets.table = [];
 
@@ -390,13 +389,12 @@
  function buildTargetsHelix(n) {
   targets.helix = [];
 
-  // ✅ Tune for your 160x200 cards (prevents collisions)
+  
   const radius = 950;          // helix width
   const yStep = 120;           // vertical spacing between targets (BIG = clean)
   const turns = 6;             // number of full twists over the whole helix
 
-  // Optional slight separation so the two strands are visually distinct
-  // (still a normal double helix, just clearer with big cards)
+  
   const strandOffset = 220;
 
   for (let i = 0; i < n; i++) {
@@ -418,8 +416,7 @@
     const t = makeTargetObject();
     t.position.set(x + side, y, z);
 
-    // ✅ Keep a natural helix orientation (no "face camera")
-    // Face outward from the center axis:
+   
     t.lookAt(new THREE.Vector3((x + side) * 2, y, z * 2));
 
     targets.helix.push(t);
@@ -431,12 +428,12 @@
     function buildTargetsGrid(n) {
   targets.grid = [];
 
-  // ✅ REQUIRED grid dimensions (matches your picture)
+  
   const COLS = 5;   // X
   const ROWS = 4;   // Y
   const DEPTH = 10; // Z (fixed, not dynamic)
 
-  // ✅ spacing tuned for your 160×200 cards
+ 
   const X_SPACING = 260;
   const Y_SPACING = 260;
   const Z_SPACING = 600;
@@ -487,7 +484,7 @@
       targets.table = []; targets.sphere = []; targets.helix = []; targets.grid = [];
       anim = null;
 
-      // ✅ Use as many rows as possible up to 118 (fills the periodic order)
+     
       const limitedData = data.slice(0, Math.min(data.length, MAX_SLOTS));
 
       camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 20000);
@@ -521,7 +518,7 @@
         el.className = "element";
         const glow = colorByWorth(netWorth);
 
-// keep dark card background, but apply glow color to border/shadow
+
 el.style.setProperty("--glow", glow);
 el.style.borderColor = glow;
 el.style.boxShadow =
@@ -614,3 +611,4 @@ el.style.boxShadow =
   </script>
 </body>
 </html>
+
